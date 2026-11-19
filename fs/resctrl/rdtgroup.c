@@ -3201,6 +3201,8 @@ static int rdt_get_tree(struct fs_context *fc)
 						   RESCTRL_PICK_ANY_CPU);
 	}
 
+	cqm_resume_limbo_handler();
+
 	goto out;
 
 out_psl:
