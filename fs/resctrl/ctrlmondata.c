@@ -71,17 +71,10 @@ static int parse_bw(struct rdt_parse_data *data, struct resctrl_schema *s,
 		    struct rdt_ctrl_domain *d)
 {
 	struct resctrl_staged_config *cfg;
-	struct rdt_resource *r = s->res;
-	u32 closid = data->closid;
 	u32 bw_val;
 
 	if (!bw_validate(data->buf, &bw_val, s))
 		return -EINVAL;
-
-	if (is_mba_sc(r)) {
-		d->mbps_val[closid] = bw_val;
-		return 0;
-	}
 
 	cfg = &d->staged_config[s->conf_type];
 	cfg->new_ctrl = bw_val;
@@ -390,8 +383,17 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 		 * Writes to mba_sc resources update the software controller,
 		 * not the control MSR.
 		 */
-		if (is_mba_sc(r))
+		if (is_mba_sc(r)) {
+			struct resctrl_staged_config *cfg;
+			struct rdt_ctrl_domain *d;
+
+			list_for_each_entry(d, &r->ctrl_domains, hdr.list) {
+				cfg = &d->staged_config[s->conf_type];
+				if (cfg->have_new_ctrl)
+					d->mbps_val[rdtgrp->closid] = cfg->new_ctrl;
+			}
 			continue;
+		}
 
 		ret = resctrl_arch_update_domains(r, rdtgrp->closid);
 		if (ret)
